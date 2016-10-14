@@ -1,0 +1,6 @@
+package: github.com/Everlane/fluffle-go
+import:
+- package: github.com/satori/go.uuid
+  version: b061729afc07e77a8aa4fad0a2fd840958f1942a
+- package: github.com/streadway/amqp
+  version: 2e25825abdbd7752ff08b270d313b93519a0a232
