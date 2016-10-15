@@ -2,7 +2,6 @@ package fluffle
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 
 	"github.com/streadway/amqp"
@@ -41,10 +40,6 @@ func (server *Server) Start() error {
 		return err
 	}
 	server.channel = channel
-	defer func() {
-		// channel.Close()
-		// server.channel = nil
-	}()
 
 	for queue, handler := range server.handlers {
 		durable := false
@@ -65,15 +60,18 @@ func (server *Server) Start() error {
 	closeChan := make(chan *amqp.Error)
 	channel.NotifyClose(closeChan)
 
-	err, open := <-closeChan
-	if err != nil {
-		return err
-	}
-	if !open {
-		return fmt.Errorf("Channel closed unexpectedly")
+	var closeErr *amqp.Error = <-closeChan
+	if closeErr != nil {
+		return closeErr
 	}
 
 	return nil
+}
+
+func (server *Server) Stop() error {
+	err := server.channel.Close()
+	server.channel = nil
+	return err
 }
 
 func (server *Server) consumeQueue(queue string, handler Handler) error {
