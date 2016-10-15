@@ -2,6 +2,9 @@ package fluffle
 
 import (
 	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func ExampleNewClient() {
@@ -14,6 +17,15 @@ func ExampleNewClient() {
 	if err != nil {
 		panic(err)
 	} else {
-		fmt.Printf("uppercase: %s", resp)
+		fmt.Printf("uppercase: %s\n", resp)
 	}
+}
+
+func TestClient(t *testing.T) {
+	client, err := NewClient("amqp://localhost")
+	require.Nil(t, err)
+
+	resp, err := client.Call("foo", []interface{}{}, "default")
+	require.Nil(t, err)
+	require.Equal(t, resp, "bar")
 }
