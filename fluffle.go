@@ -11,6 +11,7 @@ type Response struct {
 	Error   *ErrorResponse `json:"error"`
 }
 
+// Format of an error object within a response object.
 type ErrorResponse struct {
 	Code    int         `json:"code"`
 	Message string      `json:"message"`

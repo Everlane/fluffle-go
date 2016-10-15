@@ -22,26 +22,45 @@ type pendingResponse struct {
 	payload *Response
 }
 
+// Creates a client with the given UUID and initializes its internal data
+// structures. Does not setup connections or perform any network operations.
+// You will almost always want to use NewClient.
+func NewBareClient(uuid uuid.UUID) *Client {
+	return &Client{
+		UUID:             uuid,
+		pendingResponses: make(map[string]*pendingResponse),
+	}
+}
+
+// Create a client, connect it to the given AMQP server, and setup a queue
+// to receive responses on.
 func NewClient(url string) (*Client, error) {
+	uuid := uuid.NewV1()
+	client := NewBareClient(uuid)
+
 	connection, err := amqp.Dial(url)
 	if err != nil {
 		return nil, err
 	}
+	client.Connection = connection
 
 	channel, err := connection.Channel()
 	if err != nil {
 		return nil, err
 	}
+	client.Channel = channel
 
-	return &Client{
-		UUID:          uuid.NewV1(),
-		Connection:    connection,
-		Channel:       channel,
-		ResponseQueue: nil,
-	}, nil
+	err = client.SetupResponseQueue()
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
 }
 
-func (c *Client) SetupResponseQueue(uuid uuid.UUID) error {
+// Declares the response queue and starts consuming (listening) deliveries
+// from it. This is normally the final step in setting up a usable client.
+func (c *Client) SetupResponseQueue() error {
 	durable := false
 	autoDelete := false
 	exclusive := true
@@ -80,6 +99,8 @@ func (c *Client) handleReply(delivery *amqp.Delivery) {
 	pendingResponse.cond.Signal()
 }
 
+// Call a remote method over JSON-RPC and return its response. This will block
+// the goroutine on which it is called.
 func (c *Client) Call(method string, params []interface{}, queue string) (interface{}, error) {
 	id := uuid.NewV4().String()
 
@@ -98,7 +119,8 @@ func (c *Client) Call(method string, params []interface{}, queue string) (interf
 	return c.DecodeResponse(response)
 }
 
-// requestPayload: Full JSON-RPC payload.
+// Publishes a request onto the given queue, then waits for a response to that
+// message on the client's response queue.
 func (c *Client) PublishAndWait(payload *Request, queue string) (*Response, error) {
 	pendingResponse := &pendingResponse{
 		cond: sync.NewCond(new(sync.Mutex)),
@@ -118,6 +140,9 @@ func (c *Client) PublishAndWait(payload *Request, queue string) (*Response, erro
 	return pendingResponse.payload, nil
 }
 
+// payload: JSON-RPC request payload to be sent
+//
+// queue: Queue on which to send the request
 func (c *Client) Publish(payload *Request, queue string) error {
 	routingKey := RequestQueueName(queue)
 	correlationId := payload.Id
@@ -138,6 +163,8 @@ func (c *Client) Publish(payload *Request, queue string) error {
 	return c.Channel.Publish(DEFAULT_EXCHANGE, routingKey, mandatory, immediate, publishing)
 }
 
+// Figure out what was in the response payload: was it a result, an error,
+// or unknown?
 func (c *Client) DecodeResponse(payload *Response) (interface{}, error) {
 	if payload.Result != nil {
 		return payload.Result, nil
