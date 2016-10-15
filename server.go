@@ -18,12 +18,15 @@ type Server struct {
 	handlers map[string]Handler
 }
 
+// Initialize a new server with all the necessary internal data structures.
 func NewServer() *Server {
 	return &Server{
 		handlers: make(map[string]Handler),
 	}
 }
 
+// Connect to an AMQP server. This should be called after initializing a
+// server with NewServer and before calling Start.
 func (server *Server) Connect(url string) error {
 	connection, err := amqp.Dial(url)
 	if err != nil {
@@ -34,6 +37,9 @@ func (server *Server) Connect(url string) error {
 	return nil
 }
 
+// Declares queues for the configured handlers on the server and starts
+// consuming payloads for those queues. This will block the caller goroutine
+// until the server's channel is closed (eg. by calling Stop() on the server).
 func (server *Server) Start() error {
 	channel, err := server.Connection.Channel()
 	if err != nil {
@@ -68,6 +74,8 @@ func (server *Server) Start() error {
 	return nil
 }
 
+// Closes the server's channel. This will make it stop consuming payloads on
+// its handlers' queues.
 func (server *Server) Stop() error {
 	err := server.channel.Close()
 	server.channel = nil
@@ -155,10 +163,12 @@ func errorToResponse(err error) *Response {
 	}
 }
 
+// Add a handler for a given queue.
 func (server *Server) Drain(queue string, handler Handler) {
 	server.handlers[queue] = handler
 }
 
+// Add a function to handle requests on a given queue.
 func (server *Server) DrainFunc(queue string, handler func(*Request) (interface{}, error)) {
 	server.Drain(queue, HandlerFunc(handler))
 }
