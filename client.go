@@ -2,7 +2,10 @@ package fluffle
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"sync"
+	"time"
 
 	"github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
@@ -14,7 +17,7 @@ type Client struct {
 	Channel       *amqp.Channel
 	ResponseQueue *amqp.Queue
 
-	pendingResponses map[string]*pendingResponse
+	pendingResponses map[string]chan *Response
 }
 
 type pendingResponse struct {
@@ -28,7 +31,7 @@ type pendingResponse struct {
 func NewBareClient(uuid uuid.UUID) *Client {
 	return &Client{
 		UUID:             uuid,
-		pendingResponses: make(map[string]*pendingResponse),
+		pendingResponses: make(map[string]chan *Response),
 	}
 }
 
@@ -93,10 +96,12 @@ func (c *Client) handleReply(delivery *amqp.Delivery) {
 	json.Unmarshal(delivery.Body, &payload)
 
 	id := payload.Id
-
-	pendingResponse := c.pendingResponses[id]
-	pendingResponse.payload = payload
-	pendingResponse.cond.Signal()
+	responseChan, present := c.pendingResponses[id]
+	if present {
+		responseChan <- payload
+	} else {
+		log.Printf("No Response chan found: id=%s", id)
+	}
 }
 
 // Call a remote method over JSON-RPC and return its response. This will block
@@ -122,10 +127,9 @@ func (c *Client) Call(method string, params []interface{}, queue string) (interf
 // Publishes a request onto the given queue, then waits for a response to that
 // message on the client's response queue.
 func (c *Client) PublishAndWait(payload *Request, queue string) (*Response, error) {
-	pendingResponse := &pendingResponse{
-		cond: sync.NewCond(new(sync.Mutex)),
-	}
-	c.pendingResponses[payload.Id] = pendingResponse
+	timeoutChan := make(chan bool, 1)
+	responseChan := make(chan *Response, 1)
+	c.pendingResponses[payload.Id] = responseChan
 	defer delete(c.pendingResponses, payload.Id)
 
 	err := c.Publish(payload, queue)
@@ -133,11 +137,17 @@ func (c *Client) PublishAndWait(payload *Request, queue string) (*Response, erro
 		return nil, err
 	}
 
-	// Block this goroutine until the cond is signaled
-	pendingResponse.cond.Wait()
+	go func() {
+		time.Sleep(5 * time.Second)
+		timeoutChan <- true
+	}()
 
-	// Once we're signaled that means the payload is present
-	return pendingResponse.payload, nil
+	select {
+	case response := <-responseChan:
+		return response, nil
+	case <-timeoutChan:
+		return nil, fmt.Errorf("Timed out")
+	}
 }
 
 // payload: JSON-RPC request payload to be sent
