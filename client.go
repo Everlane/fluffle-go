@@ -86,6 +86,7 @@ func (c *Client) SetupResponseQueue() error {
 			c.handleReply(&delivery)
 		}
 	}()
+
 	return nil
 }
 
