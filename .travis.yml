@@ -1,16 +1,17 @@
+sudo: false
 language: go
 go:
   - '1.7'
 services:
   - rabbitmq
-addons:
- apt:
-   # Install Ruby and Bundler
-   packages:
-   - ruby
-   - rubygems
 
 before_install:
+  # Set up Ruby (https://github.com/travis-ci/apt-source-whitelist/issues/155)
+  - travis_retry sudo apt-get -y install python-software-properties
+  - travis_retry sudo apt-add-repository -y ppa:brightbox/ruby-ng
+  - travis_retry sudo apt-get update
+  - travis_retry sudo apt-get install ruby2.3 ruby2.3-dev ruby-switch
+  - sudo ruby-switch --set ruby2.3
   # Setup Glide
   - go get github.com/Masterminds/glide
 
