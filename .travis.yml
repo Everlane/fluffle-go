@@ -18,11 +18,11 @@ before_install:
 install:
   - glide install
   - go build
-
-before_script:
   - gem install fluffle --version=0.2.2
 
-script:
+before_script:
   - "ruby test/server.rb &"
-  - sleep 1
-  - bundle exec rspec
+  - "sleep 1"
+
+script:
+  - "go test $(glide novendor)"
