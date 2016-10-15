@@ -1,8 +1,10 @@
-hash: 2b9263fc20c64098574d6b9a259cc8149b14af9463adacbe78dcc0dcf3061476
-updated: 2016-10-13T18:26:20.026358068-07:00
+hash: 1e6ebb445953329f36dd49c9764e10cb82ff6b7f73c453fdc7c251ed1e8e8134
+updated: 2016-10-14T19:22:38.361216867-07:00
 imports:
 - name: github.com/satori/go.uuid
   version: b061729afc07e77a8aa4fad0a2fd840958f1942a
 - name: github.com/streadway/amqp
   version: 2e25825abdbd7752ff08b270d313b93519a0a232
-testImports: []
+testImports:
+- name: github.com/stretchr/testify
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0

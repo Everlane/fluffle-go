@@ -1,0 +1,27 @@
+language: go
+go:
+  - '1.7'
+services:
+  - rabbitmq
+addons:
+ apt:
+   # Install Ruby and Bundler
+   packages:
+   - ruby
+   - rubygems
+
+before_install:
+  # Setup Glide
+  - go get github.com/Masterminds/glide
+
+install:
+  - glide install
+  - go build
+
+before_script:
+  - gem install fluffle --version=0.2.2
+
+script:
+  - "ruby test/server.rb &"
+  - sleep 1
+  - bundle exec rspec
