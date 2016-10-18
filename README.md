@@ -1,5 +1,7 @@
 # fluffle-go
 
+[![Build Status](https://travis-ci.org/Everlane/fluffle-go.svg?branch=master)](https://travis-ci.org/Everlane/fluffle-go)
+
 This is a Go implementation of the [Fluffle][] design for JSON-RPC over RabbitMQ. It is designed for interoperability with the Ruby implementation.
 
 [Fluffle]: https://github.com/Everlane/fluffle
