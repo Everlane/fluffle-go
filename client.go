@@ -94,14 +94,18 @@ func (c *Client) handleReply(delivery *amqp.Delivery) {
 	delivery.Ack(false)
 
 	payload := &Response{}
-	json.Unmarshal(delivery.Body, &payload)
+	err := json.Unmarshal(delivery.Body, &payload)
+	if err != nil {
+		log.Printf("Error unmarshalling response payload: %v", err)
+		return
+	}
 
 	id := payload.Id
 	responseChan, present := c.pendingResponses[id]
 	if present {
 		responseChan <- payload
 	} else {
-		log.Printf("No Response chan found: id=%s", id)
+		log.Printf("No response chan found: id=%s", id)
 	}
 }
 
