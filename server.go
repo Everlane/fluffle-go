@@ -101,17 +101,31 @@ func (server *Server) consumeQueue(queue string, handler Handler) error {
 	return nil
 }
 
+func (server *Server) isBatchRequest(body []byte) bool {
+	if len(body) == 0 {
+		return false
+	} else {
+		return body[0] == '['
+	}
+}
+
 func (server *Server) handleRequest(delivery *amqp.Delivery, handler Handler) {
 	delivery.Ack(false)
 
-	var err error
+	if server.isBatchRequest(delivery.Body) {
+	} else {
+		server.handleSingleRequest(delivery, handler)
+	}
+}
+
+func (server *Server) handleSingleRequest(delivery *amqp.Delivery, handler Handler) {
 	var response *Response
 	var result interface{}
 
 	request := &Request{}
-	err = json.Unmarshal(delivery.Body, &request)
+	err := json.Unmarshal(delivery.Body, &request)
 	if err != nil {
-		log.Printf("Error unmarshalling request payload: %v", err)
+		log.Printf("Error unmarshalling Request payload: %v", err)
 		response = errorToResponse(&ParseError{})
 		goto publishResponse
 	}
@@ -125,13 +139,13 @@ func (server *Server) handleRequest(delivery *amqp.Delivery, handler Handler) {
 	response.Id = request.Id
 
 publishResponse:
-	server.publishResponse(response, delivery.ReplyTo)
+	server.publishSingleResponse(response, delivery.ReplyTo)
 }
 
-func (server *Server) publishResponse(response *Response, replyTo string) {
+func (server *Server) publishSingleResponse(response *Response, replyTo string) {
 	body, err := json.Marshal(response)
 	if err != nil {
-		log.Printf("Error marshalling response payload: %v", err)
+		log.Printf("Error marshalling Response payload: %v", err)
 		return
 	}
 
@@ -144,7 +158,53 @@ func (server *Server) publishResponse(response *Response, replyTo string) {
 	}
 	err = server.channel.Publish(DEFAULT_EXCHANGE, routingKey, mandatory, immediate, publishing)
 	if err != nil {
-		log.Printf("Error publishing response: %v", err)
+		log.Printf("Error publishing Response: %v", err)
+	}
+}
+
+func (server *Server) handleBatchRequest(delivery *amqp.Delivery, handler Handler) {
+	requests := []*Request{}
+	err := json.Unmarshal(delivery.Body, &requests)
+	if err != nil {
+		log.Printf("Error unmarshalling Batch payload: %v", err)
+		response := errorToResponse(&ParseError{})
+		server.publishSingleResponse(response, delivery.ReplyTo)
+		return
+	}
+
+	responses := []*Response{}
+	for _, request := range requests {
+		var response *Response
+
+		result, err := handler.Handle(request)
+		if err != nil {
+			response = errorToResponse(WrapError(err))
+		} else {
+			response = resultToResponse(result)
+		}
+
+		responses = append(responses, response)
+	}
+
+	server.publishBatchResponses(responses, delivery.ReplyTo)
+}
+
+func (server *Server) publishBatchResponses(responses []*Response, replyTo string) {
+	body, err := json.Marshal(responses)
+	if err != nil {
+		log.Printf("Error marshalling Batch payload: %v", err)
+		return
+	}
+
+	mandatory := false
+	immediate := false
+	routingKey := replyTo
+	publishing := amqp.Publishing{
+		Body:          body,
+	}
+	err = server.channel.Publish(DEFAULT_EXCHANGE, routingKey, mandatory, immediate, publishing)
+	if err != nil {
+		log.Printf("Error publishing Batch: %v", err)
 	}
 }
 
