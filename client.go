@@ -180,12 +180,12 @@ func (c *Client) Publish(payload *Request, queue string) error {
 
 // Figure out what was in the response payload: was it a result, an error,
 // or unknown?
-func (c *Client) DecodeResponse(payload *Response) (interface{}, error) {
-	if payload.Result != nil {
-		return payload.Result, nil
+func (c *Client) DecodeResponse(response *Response) (interface{}, error) {
+	if response.Result != nil {
+		return response.Result, nil
 	}
-	if payload.Error != nil {
-		return nil, payload.Error
+	if response.Error != nil {
+		return nil, response.Error
 	}
 	return nil, &ErrorResponse{
 		Code:    0,
