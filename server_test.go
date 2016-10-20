@@ -8,6 +8,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func echoDrainFunc(req *Request) (interface{}, error) {
+	params := make([]string, len(req.Params))
+	for i, param := range req.Params {
+		params[i] = fmt.Sprintf("%#v", param)
+	}
+	resp := fmt.Sprintf("%v(%v)", req.Method, strings.Join(params, ", "))
+	return resp, nil
+}
+
 func TestBasicServer(t *testing.T) {
 	queue := "test.1"
 
@@ -15,16 +24,9 @@ func TestBasicServer(t *testing.T) {
 	err := server.Connect("amqp://localhost")
 	require.Nil(t, err)
 
-	server.DrainFunc(queue, func(req *Request) (interface{}, error) {
-		params := make([]string, len(req.Params))
-		for i, param := range req.Params {
-			params[i] = fmt.Sprintf("%#v", param)
-		}
-		resp := fmt.Sprintf("%v(%v)", req.Method, strings.Join(params, ", "))
-		return resp, nil
-	})
+	server.DrainFunc(queue, echoDrainFunc)
 
-	go func(){
+	go func() {
 		err := server.Start()
 		require.Nil(t, err)
 	}()

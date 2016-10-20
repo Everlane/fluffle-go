@@ -36,9 +36,9 @@ func TestDecodeResponseWithResult(t *testing.T) {
 	expectedResult := "Hello world."
 	response := &Response{
 		JsonRpc: "2.0",
-		Id: id,
-		Result: expectedResult,
-		Error: nil,
+		Id:      id,
+		Result:  expectedResult,
+		Error:   nil,
 	}
 
 	result, err := NewBareClient(uuid.Nil).DecodeResponse(response)
@@ -49,14 +49,14 @@ func TestDecodeResponseWithResult(t *testing.T) {
 func TestDecodeResponseWithError(t *testing.T) {
 	id := "abc123"
 	errorResponse := &ErrorResponse{
-		Code: 456,
+		Code:    456,
 		Message: "Something bad happened.",
 	}
 	response := &Response{
 		JsonRpc: "2.0",
-		Id: id,
-		Result: nil,
-		Error: errorResponse,
+		Id:      id,
+		Result:  nil,
+		Error:   errorResponse,
 	}
 
 	result, err := NewBareClient(uuid.Nil).DecodeResponse(response)
@@ -68,9 +68,9 @@ func TestDecodeResponseWithNeither(t *testing.T) {
 	id := "abc123"
 	response := &Response{
 		JsonRpc: "2.0",
-		Id: id,
-		Result: nil,
-		Error: nil,
+		Id:      id,
+		Result:  nil,
+		Error:   nil,
 	}
 
 	result, err := NewBareClient(uuid.Nil).DecodeResponse(response)

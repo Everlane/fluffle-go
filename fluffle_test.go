@@ -10,9 +10,9 @@ import (
 func TestRequestEncode(t *testing.T) {
 	request := &Request{
 		JsonRpc: "2.0",
-		Id: "abc",
-		Method: "def",
-		Params: []interface{}{"ghi"},
+		Id:      "abc",
+		Method:  "def",
+		Params:  []interface{}{"ghi"},
 	}
 
 	body, err := json.Marshal(request)

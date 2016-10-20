@@ -200,7 +200,7 @@ func (server *Server) publishBatchResponses(responses []*Response, replyTo strin
 	immediate := false
 	routingKey := replyTo
 	publishing := amqp.Publishing{
-		Body:          body,
+		Body: body,
 	}
 	err = server.channel.Publish(DEFAULT_EXCHANGE, routingKey, mandatory, immediate, publishing)
 	if err != nil {
