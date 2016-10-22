@@ -121,6 +121,10 @@ func (c *Client) Call(method string, params []interface{}, queue string) (interf
 		Params:  params,
 	}
 
+	return c.CallWithRequest(request, queue)
+}
+
+func (c *Client) CallWithRequest(request *Request, queue string) (interface{}, error) {
 	response, err := c.PublishAndWait(request, queue)
 	if err != nil {
 		return nil, err
