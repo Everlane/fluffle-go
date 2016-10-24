@@ -85,6 +85,9 @@ func NewClient(url string) (*Client, error) {
 
 // Declares the response queue and starts consuming (listening) deliveries
 // from it. This is normally the final step in setting up a usable client.
+//
+// Note that this spawns a separate goroutine for handling replies from
+// deliveries, so it does not block the calling goroutine.
 func (c *Client) SetupResponseQueue() error {
 	durable := false
 	autoDelete := false
