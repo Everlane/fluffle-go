@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/satori/go.uuid"
@@ -18,11 +17,6 @@ type Client struct {
 	ResponseQueue *amqp.Queue
 
 	pendingResponses map[string]chan *Response
-}
-
-type pendingResponse struct {
-	cond    *sync.Cond
-	payload *Response
 }
 
 // Creates a client with the given UUID and initializes its internal data
