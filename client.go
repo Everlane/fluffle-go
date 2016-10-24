@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/satori/go.uuid"
@@ -16,7 +17,31 @@ type Client struct {
 	Channel       *amqp.Channel
 	ResponseQueue *amqp.Queue
 
-	pendingResponses map[string]chan *Response
+	pendingResponses
+}
+
+type pendingResponses struct {
+	data  map[string]chan *Response
+	mutex *sync.RWMutex
+}
+
+func (p *pendingResponses) set(id string, responseChan chan *Response) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	p.data[id] = responseChan
+}
+
+func (p *pendingResponses) unset(id string) {
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	delete(p.data, id)
+}
+
+func (p *pendingResponses) get(id string) (chan *Response, bool) {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+	responseChan, present := p.data[id]
+	return responseChan, present
 }
 
 // Creates a client with the given UUID and initializes its internal data
@@ -24,8 +49,11 @@ type Client struct {
 // You will almost always want to use NewClient.
 func NewBareClient(uuid uuid.UUID) *Client {
 	return &Client{
-		UUID:             uuid,
-		pendingResponses: make(map[string]chan *Response),
+		UUID: uuid,
+		pendingResponses: pendingResponses{
+			data:  make(map[string]chan *Response),
+			mutex: &sync.RWMutex{},
+		},
 	}
 }
 
@@ -95,7 +123,7 @@ func (c *Client) handleReply(delivery *amqp.Delivery) {
 	}
 
 	id := payload.Id
-	responseChan, present := c.pendingResponses[id]
+	responseChan, present := c.pendingResponses.get(id)
 	if present {
 		responseChan <- payload
 	} else {
@@ -132,8 +160,8 @@ func (c *Client) CallWithRequest(request *Request, queue string) (interface{}, e
 func (c *Client) PublishAndWait(payload *Request, queue string) (*Response, error) {
 	timeoutChan := make(chan bool, 1)
 	responseChan := make(chan *Response, 1)
-	c.pendingResponses[payload.Id] = responseChan
-	defer delete(c.pendingResponses, payload.Id)
+	c.pendingResponses.set(payload.Id, responseChan)
+	defer c.pendingResponses.unset(payload.Id)
 
 	err := c.Publish(payload, queue)
 	if err != nil {
